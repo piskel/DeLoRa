@@ -18,8 +18,8 @@ selected_port = port_list[port_choice]
 print(selected_port.device)
 
 
-module = YL800N.YL800N(1, 1, selected_port.device)
-
-module.open()
+module = YL800N.YL800N(YL800N.ROLE_SLAVE, 0x01, selected_port.device)
+module.open_com()
 module.configure()
-print(module.get_version())
+# print(module.get_version())
+module.send_message("ffff", "pouet")

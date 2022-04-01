@@ -1,6 +1,12 @@
 import serial
 
-# TODO: Enum pour les roles
+
+
+
+
+# Roles
+ROLE_MASTER = 1
+ROLE_SLAVE = 0
 
 class YL800N:
     def __init__(self, mode, saddr, com_port):
@@ -24,23 +30,28 @@ class YL800N:
             self.ser.close()
 
     def feed_com(self, data):
-        self.ser.write(data.encode())
-        return self.ser.readline().decode()
+        self.ser.write((data+"\r\n").encode())
+        return self.ser.readline()
+
 
     def get_version(self):
-        return self.feed_com('AT+VERSION\r\n')
-
-
+        return self.feed_com('AT+VERSION')
 
 
 
 
     def configure(self):
         self.feed_com('+++')
-        self.feed_com('AT+ROLE {}\r\n'.format(self.mode))
-        self.feed_com('AT+SADDR {}\r\n'.format(self.saddr))
-        self.feed_com('AT+USERMODE 1\r\n') # Return to transparent mode
+        self.feed_com('AT+ROLE {}'.format(self.mode))
+        self.feed_com('AT+SADDR {}'.format(self.saddr))
+        self.feed_com('AT+USERMODE 1') # Return to transparent mode
         print(self.ser.readline())
 
     def send_message(self, dest_addr, message):
-        pass
+        self.feed_com('+++')
+        # Convert message to hex
+        message = message.encode()
+        message_hex = ''.join(format(x, '02x') for x in message)
+        print('AT+SEND {},"{}"'.format(dest_addr, message_hex))
+        self.feed_com('AT+SEND {},"{}"'.format(dest_addr, message_hex))
+        

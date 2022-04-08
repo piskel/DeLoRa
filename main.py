@@ -3,6 +3,7 @@ from soupsieve import select
 
 import YL800N
 
+# TODO: Generate random short address from timestamp
 
 
 # Print all available ports
@@ -15,11 +16,33 @@ for i in range(len(port_list)):
 
 port_choice = int(input("Enter the number of the port you want to use: "))
 selected_port = port_list[port_choice]
-print(selected_port.device)
+module = YL800N.YL800N(selected_port.device)
+module.open_communication()
+
+module.feed_com(YL800N.COM_AT_RESET)
+module.feed_com(YL800N.COM_SWITCH_TO_AT) # Entering AT mode
+
+saddr_choice = int(input("Enter the short address you want to use (1-65534): "))
+module.feed_com(YL800N.COM_AT_SADDR, [saddr_choice])
 
 
-module = YL800N.YL800N(YL800N.ROLE_SLAVE, 0x01, selected_port.device)
-module.open_com()
-module.configure()
-# print(module.get_version())
-module.send_message("ffff", "pouet")
+# channel_choice = int(input("Enter the channel you want to use (0-32): "))
+# module.feed_com(YL800N.COM_AT_CHANNEL, [channel_choice])
+
+# module.feed_com(YL800N.COM_AT_ROLE, [YL800N.ROLE_SLAVE])
+
+
+while True:
+    user_msg = input("> ")
+    # Convert message to hex
+    user_msg = user_msg.encode()
+    message_hex = ''.join(format(x, '02x') for x in user_msg)
+
+    module.feed_com(YL800N.COM_SWITCH_TO_AT)
+    module.feed_com(YL800N.COM_AT_SEND, [0xFFFF, message_hex])
+    module.feed_com(YL800N.COM_AT_USERMODE, [YL800N.USERMODE_TRANSPARENT])
+
+
+
+# module.close_com()
+

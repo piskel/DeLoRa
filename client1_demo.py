@@ -1,5 +1,5 @@
 import serial.tools.list_ports
-from soupsieve import select
+import time
 
 import YL800N
 
@@ -24,12 +24,15 @@ module.feed_com(YL800N.COM_SWITCH_TO_AT) # Entering AT mode
 
 saddr_choice = int(input("Enter the short address you want to use (1-65534): "))
 module.feed_com(YL800N.COM_AT_SADDR, [saddr_choice])
-
+module.feed_com(YL800N.COM_AT_USERMODE, [YL800N.USERMODE_TRANSPARENT])
 
 # channel_choice = int(input("Enter the channel you want to use (0-32): "))
 # module.feed_com(YL800N.COM_AT_CHANNEL, [channel_choice])
-
 # module.feed_com(YL800N.COM_AT_ROLE, [YL800N.ROLE_SLAVE])
+
+
+
+
 
 
 while True:
@@ -42,6 +45,9 @@ while True:
     module.feed_com(YL800N.COM_AT_SEND, [0xFFFF, message_hex])
     module.feed_com(YL800N.COM_AT_USERMODE, [YL800N.USERMODE_TRANSPARENT])
 
+
+
+    
 
 
 # module.close_com()

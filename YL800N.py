@@ -39,6 +39,9 @@ class YL800N:
             parity=serial.PARITY_NONE,
             stopbits=serial.STOPBITS_ONE,
             bytesize=serial.EIGHTBITS)
+        
+        self._saddr = 0
+        self._panid = 0
 
     def open_communication(self):
         if not self.ser.is_open:
@@ -48,16 +51,45 @@ class YL800N:
         if self.ser.is_open:
             self.ser.close()
 
+    # # Property accessor
+    # @property
+    # def saddr(self):
+    #     return self._saddr
+
+    # @saddr.setter
+    # def saddr(self, value):
+    #     self._saddr = value if value < 0xFFFF else 0xFFFF
+
+    # @property
+    # def panid(self):
+    #     return self._panid
+
+    # @panid.setter
+    # def panid(self, value):
+    #     self._panid = value if value < 32 else 0xFFFF
+
+    def is_input_buffer_empty(self):
+        return self.ser.in_waiting == 0
+
+    def read_com(self):
+        input_buffer = self.ser.readline()
+        # self.ser.reset_input_buffer()
+        return input_buffer
+
+
+
+
+
     def feed_com(self, com:COMType, args=[]):
         query_list = [com[0]]
         if len(args) > 0:
             if len(args) != len(com[1]):
                 raise ValueError('Arguments do not match the number of arguments expected')
             
-            query_list.append(f','.join(com[1]).format(*args))  # TODO: Change, not clean
+            query_list.append(f','.join(com[1]).format(*args))
         query_str = ' '.join(query_list)
-        print(*args)
-        print(query_str)
-        self.ser.write((query_str+"\r\n").encode())
+        
+        
+        self.ser.write((query_str).encode())
         return self.ser.readline()
 

@@ -1,4 +1,5 @@
 import serial
+import serial.tools.list_ports
 
 COMType = [str, [str]]
 
@@ -43,6 +44,12 @@ class YL800N:
         self._saddr = 0
         self._panid = 0
 
+        self._current_mode = USERMODE_TRANSPARENT
+
+
+    def get_com_port_list():
+        return list(serial.tools.list_ports.comports())
+
     def open_communication(self):
         if not self.ser.is_open:
             self.ser.open()
@@ -68,6 +75,21 @@ class YL800N:
     # def panid(self, value):
     #     self._panid = value if value < 32 else 0xFFFF
 
+    # @property
+    # def module_version(self):
+    #     return self.feed_com(COM_AT_VERSION)[:-2].decode()
+
+
+
+    def change_mode(self, mode):
+        if mode != USERMODE_TRANSPARENT:
+            self.feed_com(COM_AT_USERMODE, [mode])
+            self._current_mode = mode
+        
+        # TODO: Check the changes were applied
+
+
+
     def is_input_buffer_empty(self):
         return self.ser.in_waiting == 0
 
@@ -77,14 +99,11 @@ class YL800N:
         return input_buffer
 
 
-
-
-
     def feed_com(self, com:COMType, args=[]):
         query_list = [com[0]]
         if len(args) > 0:
             if len(args) != len(com[1]):
-                raise ValueError('Arguments do not match the number of arguments expected')
+                raise ValueError("Argument number mismatch")
             
             query_list.append(f','.join(com[1]).format(*args))
         query_str = ' '.join(query_list)

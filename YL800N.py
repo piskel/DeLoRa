@@ -1,5 +1,6 @@
 import serial
 import serial.tools.list_ports
+import time
 
 COMType = [str, [str]]
 
@@ -12,103 +13,152 @@ COM_AT_BAUD         = ['AT+BAUD',       ['{:X}']]
 COM_AT_UARTPARA     = ['AT+UARTPARA',   ['{:d}','{:d}']]
 COM_AT_ROLE         = ['AT+ROLE',       ['{:d}']]
 COM_AT_LADDR        = ['AT+LADDR',      []]
-COM_AT_SADDR        = ['AT+SADDR',      ['{:x}']]
+COM_AT_SADDR        = ['AT+SADDR',      ['{:04x}']]
 COM_AT_CHANNEL      = ['AT+CHANNEL',    ['{:d}']]
-COM_AT_PANID        = ['AT+PANID',      ['{:x}']]
+COM_AT_PANID        = ['AT+PANID',      ['{:04x}']]
 COM_AT_USERMODE     = ['AT+USERMODE',   ['{:d}']]
 COM_AT_SEND         = ['AT+SEND',       ['{:x}', '"{}"']]
 
 
 BCAST_ADDR = 0xFFFF
 
+
+
 # Roles
 ROLE_MASTER = 1
 ROLE_SLAVE = 0
 
 # Usermodes
-USERMODE_HEX = 0
-USERMODE_TRANSPARENT = 1
+USERMODE_HEX = 1
+USERMODE_TRANSPARENT = 0
 USERMODE_AT = 2
 
 class YL800N:
     def __init__(self, com_port):
-        self.com_port = com_port
-        self.ser = serial.Serial(
-            self.com_port,
+        self.__com_port = com_port
+        self.__ser = serial.Serial(
+            self.__com_port,
             9600,
             timeout=1,
             parity=serial.PARITY_NONE,
             stopbits=serial.STOPBITS_ONE,
             bytesize=serial.EIGHTBITS)
         
-        self._saddr = 0
-        self._panid = 0
-
-        self._current_mode = USERMODE_TRANSPARENT
 
 
     def get_com_port_list():
         return list(serial.tools.list_ports.comports())
 
     def open_communication(self):
-        if not self.ser.is_open:
-            self.ser.open()
+        if not self.__ser.is_open:
+            self.__ser.open()
 
     def close_communication(self):
-        if self.ser.is_open:
-            self.ser.close()
+        if self.__ser.is_open:
+            self.__ser.close()
 
-    # # Property accessor
-    # @property
-    # def saddr(self):
-    #     return self._saddr
-
-    # @saddr.setter
-    # def saddr(self, value):
-    #     self._saddr = value if value < 0xFFFF else 0xFFFF
-
-    # @property
-    # def panid(self):
-    #     return self._panid
-
-    # @panid.setter
-    # def panid(self, value):
-    #     self._panid = value if value < 32 else 0xFFFF
-
-    # @property
-    # def module_version(self):
-    #     return self.feed_com(COM_AT_VERSION)[:-2].decode()
-
+    def is_communication_open(self):
+        return self.__ser.is_open
 
 
     def change_mode(self, mode):
-        if mode != USERMODE_TRANSPARENT:
-            self.feed_com(COM_AT_USERMODE, [mode])
-            self._current_mode = mode
-        
-        # TODO: Check the changes were applied
+        result = ""
+        if mode == USERMODE_AT:
+            result = self.feed_com(COM_SWITCH_TO_AT)
+        else:
+            result = self.feed_com(COM_AT_USERMODE, [mode])
 
 
-
+    
     def is_input_buffer_empty(self):
-        return self.ser.in_waiting == 0
+        return self.__ser.in_waiting == 0
+
 
     def read_com(self):
-        input_buffer = self.ser.readline()
-        # self.ser.reset_input_buffer()
+        input_buffer = self.__ser.readline()
         return input_buffer
 
 
-    def feed_com(self, com:COMType, args=[]):
-        query_list = [com[0]]
+    def feed_com(self, command:COMType, args=[]):
+        query_list = [command[0]]
         if len(args) > 0:
-            if len(args) != len(com[1]):
+            if len(args) != len(command[1]):
                 raise ValueError("Argument number mismatch")
             
-            query_list.append(f','.join(com[1]).format(*args))
+            query_list.append(f','.join(command[1]).format(*args))
         query_str = ' '.join(query_list)
+
+        if command != COM_SWITCH_TO_AT:
+            query_str += '\r\n'
         
+        self.__ser.write((query_str).encode())
+        result = self.__ser.readline().decode()
         
-        self.ser.write((query_str).encode())
-        return self.ser.readline()
+        # Debug
+        print('{} -> {}'.format(query_str.encode(), result.encode()))
+        
+        return result
+
+
+    def safe_feed_com(self, command:COMType, args=[]):
+
+        self.change_mode(USERMODE_AT)
+        result = self.feed_com(command, args)
+        self.change_mode(USERMODE_TRANSPARENT)
+        return result
+        
+
+    @property
+    def module_version(self):
+        result = self.safe_feed_com(COM_AT_VERSION)
+        return result[-7:-2]
+
+    @property
+    def role(self):
+        result = self.safe_feed_com(COM_AT_ROLE)
+        return int(result[-3:-2])
+
+    @role.setter
+    def role(self, role):
+        self.safe_feed_com(COM_AT_ROLE, [role])
+
+
+    @property
+    def laddr(self):
+        result = self.safe_feed_com(COM_AT_LADDR)
+        return result[-19:-2]
+
+
+    @property
+    def saddr(self):
+        result = self.safe_feed_com(COM_AT_SADDR)
+        return int(result[-4:-2]+result[-6:-4], base=16)
+
+    @saddr.setter
+    def saddr(self, value):
+        self.safe_feed_com(COM_AT_SADDR, [value])
+
+
+
+    
+    @property
+    def channel(self):
+        result = self.safe_feed_com(COM_AT_CHANNEL)
+        return int(result[-4:-2])
+    
+    @channel.setter
+    def channel(self, value):
+        self.safe_feed_com(COM_AT_CHANNEL, [value])
+
+
+
+    @property
+    def panid(self):
+        result = self.safe_feed_com(COM_AT_PANID)
+        return int(result[-4:-2]+result[-6:-4], base=16)
+    
+    @panid.setter
+    def panid(self, value):
+        self.safe_feed_com(COM_AT_PANID, [value])
+
 

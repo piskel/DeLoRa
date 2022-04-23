@@ -17,11 +17,10 @@ COM_AT_SADDR        = ['AT+SADDR',      ['{:04x}']]
 COM_AT_CHANNEL      = ['AT+CHANNEL',    ['{:d}']]
 COM_AT_PANID        = ['AT+PANID',      ['{:04x}']]
 COM_AT_USERMODE     = ['AT+USERMODE',   ['{:d}']]
-COM_AT_SEND         = ['AT+SEND',       ['{:x}', '"{}"']]
+COM_AT_SEND         = ['AT+SEND',       ['{:04x}', '"{}"']]
 
 
 BCAST_ADDR = 0xFFFF
-
 
 
 # Roles
@@ -29,20 +28,46 @@ ROLE_MASTER = 1
 ROLE_SLAVE = 0
 
 # Usermodes
-USERMODE_HEX = 1
-USERMODE_TRANSPARENT = 0
+USERMODE_HEX = 0
+USERMODE_TRANSPARENT = 1
 USERMODE_AT = 2
+
+# Baudrates
+BAUD_1200 = 1
+BAUD_2400 = 2
+BAUD_4800 = 3
+BAUD_9600 = 4
+BAUD_14400 = 5
+BAUD_19200 = 6
+BAUD_28800 = 7
+BAUD_38400 = 8
+BAUD_57600 = 9
+BAUD_76800 = 10
+BAUD_115200 = 11
+BAUD_230400 = 12
+
+# UART Parameters
+UART_PARAM1_1_STOP_BIT = 0
+UART_PARAM1_2_STOP_BIT = 1
+
+UART_PARAM2_NO_PARITY = 0
+UART_PARAM2_ODD_PARITY = 1
+UART_PARAM2_EVEN_PARITY = 2
+
 
 class YL800N:
     def __init__(self, com_port):
         self.__com_port = com_port
         self.__ser = serial.Serial(
-            self.__com_port,
+            self.__com_port.device,
             9600,
             timeout=1,
             parity=serial.PARITY_NONE,
             stopbits=serial.STOPBITS_ONE,
             bytesize=serial.EIGHTBITS)
+        
+        # self._baudrate = BAUD_9600
+
         
 
 
@@ -101,17 +126,49 @@ class YL800N:
 
 
     def safe_feed_com(self, command:COMType, args=[]):
-
         self.change_mode(USERMODE_AT)
         result = self.feed_com(command, args)
         self.change_mode(USERMODE_TRANSPARENT)
         return result
-        
+
+
+    def send_data(self, data, addr=BCAST_ADDR):
+        data = data.encode()
+        data_encoded = ''.join(format(x, '02x') for x in data)
+        self.safe_feed_com(COM_AT_SEND, [addr, data_encoded])
+
+
+    def restore_defaults(self):
+        self.safe_feed_com(COM_AT_DEFAULT)
+    
+    
+    def reset(self):
+        self.safe_feed_com(COM_AT_RESET)
+
 
     @property
     def module_version(self):
         result = self.safe_feed_com(COM_AT_VERSION)
         return result[-7:-2]
+    
+    @property
+    def baudrate(self):
+        result = self.safe_feed_com(COM_AT_BAUD)
+        return int(result[-3:-2], 16)
+
+    @baudrate.setter
+    def baudrate(self, baudrate):
+        self.safe_feed_com(COM_AT_BAUD, [baudrate])
+
+
+    @property
+    def uart_parity(self):
+        result = self.safe_feed_com(COM_AT_UARTPARA)
+        return [int(result[-5:-4]), int(result[-3:-2])]
+    
+    @uart_parity.setter
+    def uart_parity(self, parity):
+        self.safe_feed_com(COM_AT_UARTPARA, [parity[0], parity[1]])
 
     @property
     def role(self):
@@ -160,5 +217,9 @@ class YL800N:
     @panid.setter
     def panid(self, value):
         self.safe_feed_com(COM_AT_PANID, [value])
+
+
+
+
 
 

@@ -1,7 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
-from turtle import bgcolor, color
-import DeLoRa
+import DeLoRa_old
 import YL800N
 
 
@@ -68,7 +67,7 @@ def apply_settings(e):
         if str(com_port) == com_combobox.get():
             selected_com_port = com_port
 
-    DLR = DeLoRa.DeLoRa(selected_com_port.device, username_entry.get())
+    DLR = DeLoRa_old.DeLoRa(selected_com_port.device, username_entry.get())
 
 
 

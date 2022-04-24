@@ -117,10 +117,10 @@ class YL800N:
             query_str += '\r\n'
         
         self.__ser.write((query_str).encode())
-        result = self.__ser.readline().decode()
+        result = self.__ser.readline()
         
         # Debug
-        print('{} -> {}'.format(query_str.encode(), result.encode()))
+        print('{} -> {}'.format(query_str, result))
         
         return result
 

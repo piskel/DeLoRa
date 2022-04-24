@@ -78,7 +78,8 @@ class DLR_GUI:
             self.__enter_key_mem = True
 
             query = self.__query_entry.get()
-            print(query)        
+            self.__dlr.send_message(query)
+            
             self.__query_entry.delete(0, tk.END)
                 
     def __query_release(self, e):

@@ -12,17 +12,29 @@ DLRMessageType = {
 
 class DeLoRa:
     
-    def __init__(self, com_port, username):
-        self.__com_port = com_port
+    def __init__(self, username):
+        self.__com_port = None
         self.__username = username
-        self.__module = YL800N.YL800N(com_port)
 
-        # Configuration
+        
+        # Module configuration
+        # self.__module.reset()
+        # self.__module = YL800N.YL800N(com_port)
+        # self.__module.open_communication()
+        # self.__module.restore_defaults()
+        # self.__module.role = YL800N.ROLE_SLAVE
+    
+
+    def set_com_port(self, com_port):
+        self.__com_port = com_port
+
+        if not self.__module.is_communication_open():
+            self.__module.close_communication()
+    
+        self.__module = YL800N.YL800N(self.__com_port)
         self.__module.open_communication()
         self.__module.restore_defaults()
         self.__module.role = YL800N.ROLE_SLAVE
-        # self.__module.reset()
-    
 
     # TODO: Allow to specify the sender
     def send_message(self, message:str):
@@ -38,6 +50,8 @@ class DeLoRa:
     def check_messages(self):
         if not self.__module.is_input_buffer_empty():
             return self.__module.read_com()
+    
+
 
 
 

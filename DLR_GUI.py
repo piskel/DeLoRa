@@ -72,17 +72,23 @@ class DLR_GUI:
     
     def stop(self):
         self.__window.destroy()
-    
+
+
+    def __insert_in_message_text_box(self, message):
+        self.__message_text.configure(state='normal')
+        self.__message_text.insert(tk.END, message + "\n")
+        self.__message_text.configure(state='disabled')    
 
     def __query_keypress(self, e):
         
         if e.keycode == 13 and not self.__enter_key_mem:
             self.__enter_key_mem = True
-
-            query = self.__query_entry.get()
-            self.__dlr.send_message(query)
             
+            query = self.__query_entry.get()
             self.__query_entry.delete(0, tk.END)
+            str_message = self.__dlr.send_message(query)
+            self.__insert_in_message_text_box(str_message)
+
                 
     def __query_release(self, e):
         if e.keycode == 13:
@@ -96,7 +102,7 @@ class DLR_GUI:
                 self.__com_port = com_port
         
         if self.__dlr is not None:
-            self.__dlr.close_communication()
+            self.__dlr.stop()
         
         self.__dlr = DeLoRa(self.__username, self.__com_port)
         

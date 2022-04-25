@@ -28,6 +28,10 @@ class DeLoRa:
             role=FRAME_MODULE_CONFIG.ROLE.SLAVE,
             network_flag=0x0000,
             node_flag=0x0000)
+    
+    def stop(self):
+        self.__module.close_communication()
+
 
     # TODO: Allow to specify the sender
     def send_message(self, message:str):
@@ -39,6 +43,7 @@ class DeLoRa:
         str_message = json.dumps(message)
 
         self.__module.send_string(0xFFFF,str_message)
+        return str_message
 
 
     def check_messages(self):

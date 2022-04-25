@@ -110,7 +110,9 @@ class FRAME_MODULE_CONFIG:
         user_mode = FRAME_MODULE_CONFIG.USER_MODE(data[5])
         role = FRAME_MODULE_CONFIG.ROLE(data[6])
         network_flag = unpack('>H', data[7:9])[0]
+        network_flag = network_flag[::-1]
         node_flag = unpack('>H', data[9:11])[0]
+        node_flag = node_flag[::-1]
         serial_parameters = SERIAL_PARAMETERS.decoder(data[11])
         bandwidth = data[12]
         spread_factor = data[13]
@@ -168,6 +170,7 @@ class FRAME_APPLICATION_DATA:
     @classmethod
     def decoder(data:bytes):
         target_address = unpack('>H', data[0:1])[0]
+        target_address = target_address[::-1]
         wait_ack = FRAME_APPLICATION_DATA.WAIT_ACK(data[2])
         max_hops = data[3]
         route_discovery = FRAME_APPLICATION_DATA.ROUTE_DISCOVERY(data[4])
@@ -187,6 +190,30 @@ class FRAME_APPLICATION_DATA:
         result.append(self.payload_length)
         result.extend(self.payload)
         return result
+
+class FRAME_APPLICATION_DATA_RECEIVE:
+
+    
+    def __init__(self,
+        target_address,
+        signal_strength,
+        payload_length,
+        payload: bytes):
+        self.target_address = target_address
+        self.signal_strength = signal_strength
+        self.payload_length = payload_length
+        self.payload = payload
+
+    
+    @classmethod
+    def decoder(data:bytes):
+        target_address = unpack('>H', data[0:1])[0]
+        target_address = target_address[::-1]
+        signal_strength = data[1]
+        payload_length = data[2]
+        payload = data[3:3+payload_length]
+        return FRAME_APPLICATION_DATA_RECEIVE(target_address, signal_strength, payload_length, payload)
+
 
 
 class FRAME:
@@ -223,10 +250,10 @@ class FRAME:
 
         class APPLICATION_DATA(Enum):
             SEND = 0x01
-            RECEIVE = 0x02
             ROUTE_DISCOVERY = 0x08
 
             SEND_RESPONSE = 0x81
+            RECEIVE = 0x82
             ROUTE_DISCOVERY_RESPONSE = 0x88
 
     def __init__(self,
@@ -249,7 +276,18 @@ class FRAME:
         
         frame_type = FRAME.FRAME_TYPE(data[0])
         command_type = FRAME.COMMAND_TYPE(data[1])
-        payload = data[2:-2]
+        payload_length = data[2]
+        
+        if frame_type == FRAME.FRAME_TYPE.MODULE_CONFIG:
+            payload = FRAME_MODULE_CONFIG.decoder(data[3:3+payload_length])
+        elif frame_type == FRAME.FRAME_TYPE.APPLICATION_DATA:
+            if command_type == FRAME.COMMAND_TYPE.APPLICATION_DATA.RECEIVE:
+                payload = FRAME_APPLICATION_DATA_RECEIVE.decoder(data[3:3+payload_length])
+
+            # payload = FRAME_APPLICATION_DATA.decoder(data[3:3+payload_length])
+        else:
+            raise ValueError('Invalid frame type')
+        
         return FRAME(frame_type, command_type, payload)
     
     # @classmethod

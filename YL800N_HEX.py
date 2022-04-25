@@ -1,6 +1,4 @@
-from netrc import netrc
 import serial.tools.list_ports
-import time
 from struct import *
 from enum import Enum
 from typing import Union
@@ -38,9 +36,19 @@ class SERIAL_PARAMETERS:
         self.baudrate = baudrate
         self.parity = parity
         self.stopbits = stopbits
+        
+    @classmethod
+    def decoder(data):
+        baudrate = SERIAL_PARAMETERS.BAUDRATE(data[0] >> 4)
+        parity = SERIAL_PARAMETERS.PARITY(data[0] >> 1 & 0b11)
+        stopbits = SERIAL_PARAMETERS.STOP_BIT(data[0] & 0b1)
+        return SERIAL_PARAMETERS(baudrate, parity, stopbits)
+
 
     def value(self) -> int:
         return self.baudrate.value << 4 | self.parity.value << 1 | self.stopbits.value
+
+
 
 
 class FRAME_MODULE_CONFIG:
@@ -94,11 +102,28 @@ class FRAME_MODULE_CONFIG:
         self.serial_parameters = serial_parameters
         self.bandwidth = bandwidth
         self.spread_factor = spread_factor
+    
+    @classmethod
+    def decoder(data:bytes):
+        channel = FRAME_MODULE_CONFIG.CHANNEL(data[3])
+        tx_power = FRAME_MODULE_CONFIG.TX_POWER(data[4])
+        user_mode = FRAME_MODULE_CONFIG.USER_MODE(data[5])
+        role = FRAME_MODULE_CONFIG.ROLE(data[6])
+        network_flag = unpack('>H', data[7:9])[0]
+        node_flag = unpack('>H', data[9:11])[0]
+        serial_parameters = SERIAL_PARAMETERS.decoder(data[11])
+        bandwidth = data[12]
+        spread_factor = data[13]
+        return FRAME_MODULE_CONFIG(channel, user_mode, role, network_flag, node_flag, serial_parameters, tx_power, bandwidth, spread_factor)
+
+
+        
+
 
     def value(self) -> bytes:
         result = bytearray()
         result.extend(self.CONFIG_FLAG)
-        result.append(self.channel)
+        result.append(self.channel.value)
         result.append(self.tx_power.value)
         result.append(self.user_mode.value)
         result.append(self.role.value)
@@ -135,10 +160,21 @@ class FRAME_APPLICATION_DATA:
 
         self.target_address = target_address
         self.wait_ack = wait_ack
-        self.send_radius = max_hops
+        self.max_hops = max_hops
         self.route_discovery = route_discovery
         self.payload_length = len(payload)
         self.payload = payload
+    
+    @classmethod
+    def decoder(data:bytes):
+        target_address = unpack('>H', data[0:1])[0]
+        wait_ack = FRAME_APPLICATION_DATA.WAIT_ACK(data[2])
+        max_hops = data[3]
+        route_discovery = FRAME_APPLICATION_DATA.ROUTE_DISCOVERY(data[4])
+        payload_length = data[5]
+        payload = data[6:6+payload_length]
+        return FRAME_APPLICATION_DATA(target_address, wait_ack, max_hops, route_discovery, payload)
+
 
     def value(self):
         result = bytearray()
@@ -165,7 +201,7 @@ class FRAME:
     SEQUENCE_NUMBER = 0x00
 
     class COMMAND_TYPE:
-        COMMAND_TYPE_RESPONSE = 0x80
+        # COMMAND_TYPE_RESPONSE = 0x80
 
         class MODULE_CONFIG(Enum):
             WRITE_CONFIG = 0x01
@@ -173,14 +209,25 @@ class FRAME:
             VERSION = 0x06
             RESET = 0x07
 
+            WRITE_CONFIG_RESPONSE = 0x81
+            READ_CONFIG_RESPONSE = 0x82
+            VERSION_RESPONSE = 0x86
+            RESET_RESPONSE = 0x87
+
         class DEBUG(Enum):
             WRITE_ACCESS_CONTROL_LIST = 0x01
             READ_ACCESS_CONTROL_LIST = 0x02
+
+            WRITE_ACCESS_CONTROL_LIST_RESPONSE = 0x81
+            READ_ACCESS_CONTROL_LIST_RESPONSE = 0x82
 
         class APPLICATION_DATA(Enum):
             SEND = 0x01
             RECEIVE = 0x02
             ROUTE_DISCOVERY = 0x08
+
+            SEND_RESPONSE = 0x81
+            ROUTE_DISCOVERY_RESPONSE = 0x88
 
     def __init__(self,
         frame_type: FRAME_TYPE,
@@ -190,6 +237,27 @@ class FRAME:
         self.frame_type = frame_type
         self.command_type = command_type
         self.payload = payload
+    
+    # Bytes to FRAME
+    @classmethod
+    def decoder(data:bytes):
+        if len(data) < 5: # Minimum length of frame
+            raise ValueError('Invalid frame length')
+        if FRAME.crc(data[:-2]) != data[-1]:
+            raise ValueError('Invalid frame CRC')
+        
+        frame_type = FRAME.FRAME_TYPE(data[0])
+        command_type = FRAME.COMMAND_TYPE(data[1])
+        payload = data[2:-2]
+        return FRAME(frame_type, command_type, payload)
+    
+    # @classmethod
+    def crc(data:bytes):
+        crc = 0 
+        for b in data:
+            crc = crc ^ b
+        return crc
+
 
     def value(self) -> bytes:
         result = bytearray()
@@ -198,13 +266,9 @@ class FRAME:
         result.append(self.command_type.value)
         result.append(len(self.payload))
         result.extend(self.payload)
-        crc = 0
-        for b in result:
-            crc = crc ^ b
-        result.append(crc)
+        result.append(FRAME.crc(result))
 
         return result
-
 
 # TODO: Update serial interface to both module and client when changing them
 
@@ -234,17 +298,22 @@ class YL800N:
         return self.__ser.is_open
     
     def send_frame(self, frame:FRAME):
+
+
+        # Debug
+        print("Sending : ", end='')
+        for b in frame.value():
+            print("{:02x}".format(b), end = " ")
+
         self.__ser.write(frame.value())
         result = self.__ser.readline()
 
+
         # Debug
-        print("Sent : ", end='')
-        for b in frame.value():
-            print("{:02x}".format(b), end = " ")
-        
         print("\nReceived : ", end='')
         for b in result:
             print("{:02x}".format(b), end = " ")
+        print()
 
 
     def set_config(self,
@@ -256,6 +325,7 @@ class YL800N:
         tx_power: FRAME_MODULE_CONFIG.TX_POWER = FRAME_MODULE_CONFIG.TX_POWER.PWR20dBm,
         bandwidth=9,
         spread_factor=9):
+
         serial_parameters = SERIAL_PARAMETERS(
             SERIAL_PARAMETERS.BAUDRATE.BAUDRATE_9600,
             SERIAL_PARAMETERS.PARITY.PARITY_NONE,
@@ -265,15 +335,16 @@ class YL800N:
             FRAME.FRAME_TYPE.MODULE_CONFIG,
             FRAME.COMMAND_TYPE.MODULE_CONFIG.WRITE_CONFIG,
             FRAME_MODULE_CONFIG(
-                channel,
-                tx_power,
-                user_mode,
-                role,
-                network_flag,
-                node_flag,
-                serial_parameters,
-                bandwidth,
-                spread_factor).value())
+                channel=channel,
+                user_mode=user_mode,
+                role=role,
+                network_flag=network_flag,
+                node_flag=node_flag,
+                tx_power=tx_power,
+                serial_parameters=serial_parameters,
+                bandwidth=bandwidth,
+                spread_factor=spread_factor).value())
+
         
         self.send_frame(frame)
 
@@ -290,57 +361,33 @@ class YL800N:
             FRAME.FRAME_TYPE.APPLICATION_DATA,
             FRAME.COMMAND_TYPE.APPLICATION_DATA.SEND,
             FRAME_APPLICATION_DATA(
-                target_address,
-                wait_ack,
-                max_hops,
-                route_discovery,
-                payload).value())
-    
+                target_address=target_address,
+                wait_ack=wait_ack,
+                max_hops=max_hops,
+                route_discovery=route_discovery,
+                payload=payload).value())
+        
         self.send_frame(frame)
+    
+    def send_string(self,
+        target_address,
+        payload:str,
+        wait_ack: FRAME_APPLICATION_DATA.WAIT_ACK = FRAME_APPLICATION_DATA.WAIT_ACK.DISABLED,
+        max_hops=7,
+        route_discovery: FRAME_APPLICATION_DATA.ROUTE_DISCOVERY = FRAME_APPLICATION_DATA.ROUTE_DISCOVERY.AUTOMATIC
+        ):
+        self.send_data(
+            target_address,
+            payload.encode(),
+            wait_ack,
+            max_hops,
+            route_discovery)
+
+    def is_input_buffer_empty(self):
+        return self.__ser.in_waiting == 0
 
 
+    def read_com(self):
+        input_buffer = self.__ser.readline()
+        return input_buffer
 
-# ser_conf = SERIAL_PARAMETERS(
-#     SERIAL_PARAMETERS.BAUDRATE.BAUDRATE_9600,
-#     SERIAL_PARAMETERS.PARITY.PARITY_NONE,
-#     SERIAL_PARAMETERS.STOP_BIT.STOP_BIT_1)
-
-
-
-# test=FRAME_MODULE_CONFIG(
-#     FRAME_MODULE_CONFIG.CHANNEL.CH432M,
-#     FRAME_MODULE_CONFIG.TX_POWER.PWR20dBm,
-#     FRAME_MODULE_CONFIG.USER_MODE.HEXADECIMAL,
-#     FRAME_MODULE_CONFIG.ROLE.SLAVE,
-#     0x03,
-#     0x03,
-#     ser_conf
-#     );
-
-
-# frame = FRAME(
-#     FRAME.FRAME_TYPE.MODULE_CONFIG,
-#     FRAME.COMMAND_TYPE.MODULE_CONFIG.WRITE_CONFIG,
-#     test.value())
-
-
-# frame_data=FRAME(
-#     FRAME.FRAME_TYPE.APPLICATION_DATA,
-#     FRAME.COMMAND_TYPE.APPLICATION_DATA.SEND,
-#     FRAME_APPLICATION_DATA(
-#         0x0001,
-#         FRAME_APPLICATION_DATA.WAIT_ACK.DISABLED,
-#         0x03,
-#         FRAME_APPLICATION_DATA.ROUTE_DISCOVERY.DISABLED,
-#         [0xaa, 0xaa, 0xaa, 0xaa, 0xaa]).value())
-
-# print(ser_conf.value())
-# print(test.value().hex())
-
-
-# for b in frame_data.value():
-#     print("{:02x}".format(b), end = " ")
-
-# print(frame.value().hex())
-
-# print("{0:b}".format(test.value()))

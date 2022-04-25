@@ -2,15 +2,15 @@
 import tkinter as tk
 from tkinter import ttk
 
-import DeLoRa
-import YL800N
+from DeLoRa import *
+from YL800N_HEX import *
 
 
 class DLR_GUI:
 
     def __init__(self):
 
-        self.__dlr = DeLoRa.DeLoRa()
+        self.__dlr: DeLoRa = None
         self.__window = tk.Tk()
         
         # GUI Windows configuration
@@ -54,12 +54,14 @@ class DLR_GUI:
         self.__COMPortLabel = tk.Label(self.__settingsTab,text="COM Port")
         self.__COMPortLabel.grid(sticky="W", row=1, column=0)
 
-        self.__COMPortCombobox = ttk.Combobox(self.__settingsTab, values=YL800N.YL800N.get_com_port_list(), state="readonly")
+        self.__COMPortCombobox = ttk.Combobox(self.__settingsTab, values=YL800N.get_com_port_list(), state="readonly")
         self.__COMPortCombobox.grid(sticky="W", row=1, column=1)
 
         self.__applySettingsButton = tk.Button(self.__settingsTab, text="Apply")
         self.__applySettingsButton.grid(sticky="W", row=2, column=1)
         self.__applySettingsButton.bind("<Button-1>", self.__apply_settings)
+        self.__applySettingsButton.bind("<Key-space>", self.__apply_settings)
+        self.__applySettingsButton.bind("<Key-Return>", self.__apply_settings)
 
         
 
@@ -88,13 +90,13 @@ class DLR_GUI:
     
     def __apply_settings(self, e):
         self.__username = self.__usernameEntry.get()
+        
 
-        for com_port in YL800N.YL800N.get_com_port_list():
+        for com_port in YL800N.get_com_port_list():
             if str(com_port) == self.__COMPortCombobox.get():
-                selected_com_port = com_port
                 self.__com_port = com_port
         
-        self.__dlr.set_com_port(self.__com_port)
+        self.__dlr = DeLoRa(self.__username, self.__com_port)
         
 
     def __check_gui_config(self):

@@ -1,14 +1,8 @@
-import serial.tools.list_ports
+from YL800N_HEX import *
 import time
 
-import YL800N
 
-# TODO: Generate random short address from timestamp
-
-
-# Print all available ports
-port_list = list(serial.tools.list_ports.comports())
-
+port_list = YL800N.get_com_port_list()
 
 for i in range(len(port_list)):
     print(str(i) + " : " + str(port_list[i]))
@@ -16,31 +10,24 @@ for i in range(len(port_list)):
 
 port_choice = int(input("Enter the number of the port you want to use: "))
 selected_port = port_list[port_choice]
-module = YL800N.YL800N(selected_port)
+module = YL800N(selected_port)
 module.open_communication()
-module.role = YL800N.ROLE_SLAVE
 
-
-module.reset()
 saddr_choice = int(input("Enter the short address you want to use (1-65534): "))
-module.saddr = saddr_choice
 
 
+module.set_config(
+    channel=FRAME_MODULE_CONFIG.CHANNEL.CH432M,
+    user_mode=FRAME_MODULE_CONFIG.USER_MODE.HEXADECIMAL,
+    role=FRAME_MODULE_CONFIG.ROLE.SLAVE,
+    network_flag=0x0000,
+    node_flag=saddr_choice)
 
-buffer = ""
-new_buffer = ""
 while True:
-    # new_buffer += module.read_com()
-
-
     if not module.is_input_buffer_empty():
         print(module.read_com())
-    
     time.sleep(0.1)
 
-
     
 
-
-# module.close_com()
-
+    

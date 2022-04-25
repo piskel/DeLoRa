@@ -16,7 +16,7 @@ saddr_choice = int(input("Enter the short address you want to use (1-65534): "))
 
 
 module.set_config(
-    channel=0,
+    channel=FRAME_MODULE_CONFIG.CHANNEL.CH432M,
     user_mode=FRAME_MODULE_CONFIG.USER_MODE.HEXADECIMAL,
     role=FRAME_MODULE_CONFIG.ROLE.SLAVE,
     network_flag=0x0000,
@@ -24,7 +24,7 @@ module.set_config(
 
 while True:
     user_msg = input("> ")
-    module.send_data(0xFFFF,user_msg)
+    module.send_string(0xFFFF,user_msg)
 
     
 

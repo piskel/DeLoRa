@@ -232,7 +232,8 @@ class FRAME:
     def __init__(self,
         frame_type: FRAME_TYPE,
         command_type: Union[COMMAND_TYPE.MODULE_CONFIG, COMMAND_TYPE.DEBUG, COMMAND_TYPE.APPLICATION_DATA],
-        payload: bytes):
+        payload: Union[FRAME_MODULE_CONFIG, FRAME_APPLICATION_DATA]):
+        
 
         self.frame_type = frame_type
         self.command_type = command_type
@@ -264,8 +265,8 @@ class FRAME:
         result.append(self.frame_type.value)
         result.append(self.SEQUENCE_NUMBER)
         result.append(self.command_type.value)
-        result.append(len(self.payload))
-        result.extend(self.payload)
+        result.append(len(self.payload.value()))
+        result.extend(self.payload.value())
         result.append(FRAME.crc(result))
 
         return result
@@ -343,7 +344,7 @@ class YL800N:
                 tx_power=tx_power,
                 serial_parameters=serial_parameters,
                 bandwidth=bandwidth,
-                spread_factor=spread_factor).value())
+                spread_factor=spread_factor))
 
         
         self.send_frame(frame)
@@ -365,7 +366,7 @@ class YL800N:
                 wait_ack=wait_ack,
                 max_hops=max_hops,
                 route_discovery=route_discovery,
-                payload=payload).value())
+                payload=payload))
         
         self.send_frame(frame)
     

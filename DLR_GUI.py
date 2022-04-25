@@ -91,10 +91,12 @@ class DLR_GUI:
     def __apply_settings(self, e):
         self.__username = self.__usernameEntry.get()
         
-
         for com_port in YL800N.get_com_port_list():
             if str(com_port) == self.__COMPortCombobox.get():
                 self.__com_port = com_port
+        
+        if self.__dlr is not None:
+            self.__dlr.close_communication()
         
         self.__dlr = DeLoRa(self.__username, self.__com_port)
         

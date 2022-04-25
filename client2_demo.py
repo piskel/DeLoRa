@@ -16,19 +16,14 @@ for i in range(len(port_list)):
 
 port_choice = int(input("Enter the number of the port you want to use: "))
 selected_port = port_list[port_choice]
-module = YL800N.YL800N(selected_port.device)
+module = YL800N.YL800N(selected_port)
 module.open_communication()
+module.role = YL800N.ROLE_SLAVE
 
-module.feed_com(YL800N.COM_AT_RESET)
-module.feed_com(YL800N.COM_SWITCH_TO_AT) # Entering AT mode
 
+module.reset()
 saddr_choice = int(input("Enter the short address you want to use (1-65534): "))
-module.feed_com(YL800N.COM_AT_SADDR, [saddr_choice])
-module.feed_com(YL800N.COM_AT_USERMODE, [YL800N.USERMODE_TRANSPARENT])
-
-# channel_choice = int(input("Enter the channel you want to use (0-32): "))
-# module.feed_com(YL800N.COM_AT_CHANNEL, [channel_choice])
-# module.feed_com(YL800N.COM_AT_ROLE, [YL800N.ROLE_SLAVE])
+module.saddr = saddr_choice
 
 
 

@@ -17,8 +17,8 @@ for i in range(len(port_list)):
 port_choice = int(input("Enter the number of the port you want to use: "))
 selected_port = port_list[port_choice]
 module = YL800N.YL800N(selected_port)
-module.role = YL800N.ROLE_MASTER
 module.open_communication()
+module.role = YL800N.ROLE_SLAVE
 
 
 module.reset()

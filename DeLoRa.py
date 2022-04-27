@@ -1,7 +1,6 @@
 import time
-import tkinter as tk
-from tkinter import ttk
 import json
+import random
 
 from YL800N_HEX import *
 
@@ -27,7 +26,7 @@ class DeLoRa:
             user_mode=FRAME_MODULE_CONFIG.USER_MODE.HEXADECIMAL,
             role=FRAME_MODULE_CONFIG.ROLE.SLAVE,
             network_flag=0x0000,
-            node_flag=0x0000)
+            node_flag=random.randint(0,0xFFFE))
     
     def stop(self):
         self.__module.close_communication()
@@ -50,6 +49,11 @@ class DeLoRa:
         if not self.__module.is_input_buffer_empty():
             return self.__module.read_com()
     
+    def is_input_buffer_empty(self):
+        return self.__module.is_input_buffer_empty()
+        
+    def read_com(self):
+        return self.__module.read_com()
 
 
 

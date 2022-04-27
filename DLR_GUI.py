@@ -5,6 +5,8 @@ from tkinter import ttk
 from DeLoRa import *
 from YL800N_HEX import *
 
+import threading
+
 
 class DLR_GUI:
 
@@ -63,10 +65,24 @@ class DLR_GUI:
         self.__applySettingsButton.bind("<Key-space>", self.__apply_settings)
         self.__applySettingsButton.bind("<Key-Return>", self.__apply_settings)
 
-        
+        self.__reception_thread = threading.Thread(target=self.message_reception)
+        self.__reception_thread.daemon = False
+
+
+    def message_reception(self):
+        a = False
+        while True:
+            if self.__dlr is not None:
+                if not self.__dlr.is_input_buffer_empty():
+                    received_message = self.__dlr.read_com()
+                    print(received_message)
+                    self.__insert_in_message_text_box(str(received_message))
+                time.sleep(0.1)
 
 
     def start(self):
+        self.__reception_thread.start()
+        print("Thread starting ...")
         self.__window.mainloop()
 
     
@@ -107,7 +123,7 @@ class DLR_GUI:
         self.__dlr = DeLoRa(self.__username, self.__com_port)
         
 
-    def __check_gui_config(self):
-        pass
-    
+    # def __check_gui_config(self):
+    #     pass
 
+    

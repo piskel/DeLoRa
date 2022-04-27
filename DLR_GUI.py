@@ -68,6 +68,8 @@ class DLR_GUI:
         self.__reception_thread = threading.Thread(target=self.message_reception)
         self.__reception_thread.daemon = False
 
+        # self.__window.protocol("WM_DELETE_WINDOW", self.stop)
+
 
     def message_reception(self):
         a = False
@@ -77,7 +79,7 @@ class DLR_GUI:
                     received_message = self.__dlr.read_com()
                     print(received_message)
                     self.__insert_in_message_text_box(str(received_message))
-                time.sleep(0.1)
+            time.sleep(0.1)
 
 
     def start(self):
@@ -89,11 +91,11 @@ class DLR_GUI:
     def stop(self):
         self.__window.destroy()
 
-
     def __insert_in_message_text_box(self, message):
         self.__message_text.configure(state='normal')
         self.__message_text.insert(tk.END, message + "\n")
-        self.__message_text.configure(state='disabled')    
+        self.__message_text.see(tk.END)
+        self.__message_text.configure(state='disabled')
 
     def __query_keypress(self, e):
         

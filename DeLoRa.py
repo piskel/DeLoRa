@@ -39,7 +39,7 @@ class DeLoRa:
             'timestamp': int(time.time()),
             'message': message
         }
-        str_message = json.dumps(message)
+        str_message = json.dumps(message, ensure_ascii=False)
 
         self.__module.send_string(0xFFFF,str_message)
         return str_message

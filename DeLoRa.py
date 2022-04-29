@@ -53,9 +53,12 @@ class DeLoRa:
         return self.__module.is_input_buffer_empty()
         
     def read_com(self):
-        return self.__module.read_com()
-
-
+        packet = self.__module.read_com()
+        frame = FRAME.decoder(packet)
+        print(frame)
+        if frame is None or frame.payload is None:
+            return None
+        return frame.payload.payload
 
 
     

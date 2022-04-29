@@ -37,7 +37,7 @@ class SERIAL_PARAMETERS:
         self.parity = parity
         self.stopbits = stopbits
         
-    @classmethod
+    # @classmethod
     def decoder(data):
         baudrate = SERIAL_PARAMETERS.BAUDRATE(data[0] >> 4)
         parity = SERIAL_PARAMETERS.PARITY(data[0] >> 1 & 0b11)
@@ -103,7 +103,7 @@ class FRAME_MODULE_CONFIG:
         self.bandwidth = bandwidth
         self.spread_factor = spread_factor
     
-    @classmethod
+    # @classmethod
     def decoder(data:bytes):
         channel = FRAME_MODULE_CONFIG.CHANNEL(data[3])
         tx_power = FRAME_MODULE_CONFIG.TX_POWER(data[4])
@@ -167,7 +167,7 @@ class FRAME_APPLICATION_DATA:
         self.payload_length = len(payload)
         self.payload = payload
     
-    @classmethod
+    # @classmethod
     def decoder(data:bytes):
         target_address = unpack('>H', data[0:1])[0]
         target_address = target_address[::-1]
@@ -205,13 +205,14 @@ class FRAME_APPLICATION_DATA_RECEIVE:
         self.payload = payload
 
     
-    @classmethod
+    # @classmethod
     def decoder(data:bytes):
-        target_address = unpack('>H', data[0:1])[0]
-        target_address = target_address[::-1]
-        signal_strength = data[1]
-        payload_length = data[2]
-        payload = data[3:3+payload_length]
+        target_address = data[0:2]
+        target_address = unpack('>H', target_address[::-1])[0]
+        
+        signal_strength = data[2]
+        payload_length = data[3]
+        payload = data[4:4+payload_length]
         return FRAME_APPLICATION_DATA_RECEIVE(target_address, signal_strength, payload_length, payload)
 
 
@@ -228,7 +229,6 @@ class FRAME:
     SEQUENCE_NUMBER = 0x00
 
     class COMMAND_TYPE:
-        # COMMAND_TYPE_RESPONSE = 0x80
 
         class MODULE_CONFIG(Enum):
             WRITE_CONFIG = 0x01
@@ -259,7 +259,7 @@ class FRAME:
     def __init__(self,
         frame_type: FRAME_TYPE,
         command_type: Union[COMMAND_TYPE.MODULE_CONFIG, COMMAND_TYPE.DEBUG, COMMAND_TYPE.APPLICATION_DATA],
-        payload: Union[FRAME_MODULE_CONFIG, FRAME_APPLICATION_DATA]):
+        payload: Union[FRAME_MODULE_CONFIG, FRAME_APPLICATION_DATA, FRAME_APPLICATION_DATA_RECEIVE]):
         
 
         self.frame_type = frame_type
@@ -267,24 +267,26 @@ class FRAME:
         self.payload = payload
     
     # Bytes to FRAME
-    @classmethod
+    # @classmethod
     def decoder(data:bytes):
         if len(data) < 5: # Minimum length of frame
             raise ValueError('Invalid frame length')
-        if FRAME.crc(data[:-2]) != data[-1]:
-            raise ValueError('Invalid frame CRC')
+        # if FRAME.crc(data[:-2]) != data[-1]:
+        #     raise ValueError('Invalid frame CRC')
         
         frame_type = FRAME.FRAME_TYPE(data[0])
-        command_type = FRAME.COMMAND_TYPE(data[1])
-        payload_length = data[2]
-        
-        if frame_type == FRAME.FRAME_TYPE.MODULE_CONFIG:
-            payload = FRAME_MODULE_CONFIG.decoder(data[3:3+payload_length])
-        elif frame_type == FRAME.FRAME_TYPE.APPLICATION_DATA:
-            if command_type == FRAME.COMMAND_TYPE.APPLICATION_DATA.RECEIVE:
-                payload = FRAME_APPLICATION_DATA_RECEIVE.decoder(data[3:3+payload_length])
+        # sequence_number = data[1]
+        payload_length = data[3]
 
-            # payload = FRAME_APPLICATION_DATA.decoder(data[3:3+payload_length])
+        payload = None
+        
+        # if frame_type == FRAME.FRAME_TYPE.MODULE_CONFIG:
+        #     payload = FRAME_MODULE_CONFIG.decoder(data[3:3+payload_length])
+        
+        if frame_type == FRAME.FRAME_TYPE.APPLICATION_DATA:
+            command_type = FRAME.COMMAND_TYPE.APPLICATION_DATA(data[2])
+            if command_type == FRAME.COMMAND_TYPE.APPLICATION_DATA.RECEIVE:
+                payload = FRAME_APPLICATION_DATA_RECEIVE.decoder(data[4:4+payload_length])
         else:
             raise ValueError('Invalid frame type')
         
@@ -352,7 +354,7 @@ class YL800N:
         print("\nReceived : ", end='')
         for b in result:
             print("{:02x}".format(b), end = " ")
-        print()
+        print() # Newline
 
 
     def set_config(self,

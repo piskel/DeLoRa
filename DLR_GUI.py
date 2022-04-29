@@ -77,8 +77,10 @@ class DLR_GUI:
             if self.__dlr is not None:
                 if not self.__dlr.is_input_buffer_empty():
                     received_message = self.__dlr.read_com()
-                    print(received_message)
-                    self.__insert_in_message_text_box(str(received_message))
+                    if received_message is not None:
+                        self.__insert_in_message_text_box(str(received_message.decode()))
+                    # print(received_message)
+                    # self.__insert_in_message_text_box(str(received_message))
             time.sleep(0.1)
 
 

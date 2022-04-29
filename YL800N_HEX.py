@@ -419,7 +419,7 @@ class YL800N:
         ):
         self.send_data(
             target_address,
-            payload.encode(),
+            payload.encode("utf-8"),
             wait_ack,
             max_hops,
             route_discovery)

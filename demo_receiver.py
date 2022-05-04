@@ -27,7 +27,3 @@ while True:
     if not module.is_input_buffer_empty():
         print(module.read_com())
     time.sleep(0.1)
-
-    
-
-    
